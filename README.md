@@ -4,7 +4,7 @@ TODO: description
 
 ## Installation
 
-You only need `python` with `numpy` and `matplotlib` to be able to run the project
+You need `python` with `pandas`, `numpy`, `matplotlib` and `seaborn` to be able to run the project
 
 ## Usage
 

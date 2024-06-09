@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
 import seaborn as sns
 import numpy as np
 from lib.topology import Topology
@@ -9,55 +10,18 @@ sns.set_theme(font_scale=1.8)
 plt.rcParams.update({'font.size': 20})
 
 
-def plot_topology(topo:Topology) -> None:
-    fig = plt.figure(figsize=(16,6))
-    ax1 = fig.add_subplot(121, projection='3d')
-    ax2 = fig.add_subplot(122, projection='3d')
+def plot_topology_density(topo:Topology) -> None:
+    fig = plt.figure()
+    ax = fig.add_subplot()
 
-    # Grid
-    x,y = np.meshgrid(
-        np.linspace(0, topo.height-1, topo.height),
-        np.linspace(0, topo.width-1, topo.width))
+    im = ax.imshow(topo.density_grid, cmap='viridis', origin='lower')
+    fig.colorbar(im, ax=ax, label='Density of end users')
 
-    # End Users
-    z = np.array(topo.grid)
-    ax1.plot_surface(
-        x,
-        y,
-        z,
-        #marker='o',
-        color='blue',
-        label='End users QoS constraint',
-    )
-    ax1.set_xlabel('x position')
-    ax1.set_ylabel('y position')
-    ax1.set_zlabel('QoS (bps)')
-    #ax1.grid(True)
-    #ax1.legend()
-    ax1.set_title(
-        "End users qos constraints",
-        loc='left',
-        weight='bold'
-    )
-
-
-    # Pylons
-    z = np.array([ [ 1 if (int(x),int(y)) in topo.pylons.keys() else 0 for y in range(topo.height) ] for x in range(topo.width) ])
-    ax2.plot_surface(
-        x,
-        y,
-        z,
-        #marker='o',
-        color='red',
-        label='Pylons locations',
-    )
-    ax2.set_xlabel('x position')
-    ax2.set_ylabel('y position')
-    ax2.set_zlabel('QoS (bps)')
-    #ax2.grid(True)
-    #ax2.legend()
-    ax2.set_title(
-        "Available pylon locations",
+    ax.set_xlabel('x position')
+    ax.set_ylabel('y position')
+    ax.grid(False)
+    ax.set_title(
+        "Density of end users",
         loc='left',
         weight='bold'
     )
@@ -65,5 +29,51 @@ def plot_topology(topo:Topology) -> None:
     plt.show()
 
 
-def plot_grid(topo:Topology) -> None:
-    pass
+def plot_topology_graph(topo:Topology) -> None:
+    fig = plt.figure()
+    ax = fig.add_subplot()
+
+    x,y = zip(*topo.pylons.keys())
+    ax.scatter(x, y, [10 for _ in x], c='red', label='Base stations')
+    x,y = zip(*topo.users.keys())
+    ax.scatter(x, y, [5 for _ in x], c='black', label='User Equipments')
+
+    ax.set_xlabel('x position')
+    ax.set_ylabel('y position')
+    ax.grid(True)
+    ax.legend()
+    ax.set_title(
+        "Topology of the network",
+        loc='left',
+        weight='bold'
+    )
+
+    plt.show()
+
+
+def plot_topology_allocation(topo:Topology):
+    fig = plt.figure()
+    ax = fig.add_subplot()
+
+    # Plot allocations
+    edges = [ (u,p) for u,p in topo.users.items() if p != None ]
+    lc = LineCollection(edges, linewidths=1, colors=["black"])
+    ax.add_collection(lc)
+
+    # Plot points
+    x,y = zip(*topo.pylons.keys())
+    ax.scatter(x, y, [10 for _ in x], c='red', label='Base stations')
+    x,y = zip(*topo.users.keys())
+    ax.scatter(x, y, [5 for _ in x], c='black', label='User Equipments')
+
+    ax.set_xlabel('x position')
+    ax.set_ylabel('y position')
+    ax.grid(True)
+    ax.legend()
+    ax.set_title(
+        "BS/UE allocation of the network",
+        loc='left',
+        weight='bold'
+    )
+
+    plt.show()

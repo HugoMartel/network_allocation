@@ -1,106 +1,37 @@
 import numpy as np
-from bisect import insort
 import json
+from lib.graph import WeightedGraph
+from math import log10
 
 
 def dist2(u:tuple[int,int], v:tuple[int,int]) -> float:
     return np.sqrt((u[0]-v[0])**2 + (u[1]-v[1])**2)
 
 
-class WeightedEdge:
-    v:tuple[int,int]
-    w:float
+def sample_users(tile_size:tuple[float,float], density:int) -> np.ndarray:
+    """Sample end users in a tile from a given density.
 
-    def __init__(self, v:tuple[int,int], w:float):
-        self.v = v
-        self.w = w
+    Parameters:
+    tile_size -- Size of a tile in meters by coord.
+    density -- Number of end users per tile.
 
-    def __lt__(self, e):
-        return self.w < e.w
-
-    def __str__(self):
-        return f"-> {self.v} : {self.w}"
-
-
-class WeightedGridGraph:
-    vertices:set[tuple[int,int]]
-    edges:dict[tuple[int,int], list[WeightedEdge]]
-
-    def __init__(self):
-        """TODO
-        """
-        # Empty graph
-        self.edges = {}
-        self.vertices = set()
-
-    def __init__(self, grid:np.array):
-        """Build a dumb clique G=(V,E) with #E = #V * (#V - 1)
-        """
-        # grid is a 2D numpy array
-        self.edges = {}
-        self.vertices = set()
-
-        # Init vertices
-        for x in range(grid.shape[0]):
-            for y in range(grid.shape[1]):
-                self.vertices.add((x,y))
-                self.edges[(x,y)] = []
-
-        # Init edges & weights
-        for u in self.vertices:
-            for v in self.vertices:
-                if u != v:
-                    d:float = dist2(u,v)
-                    insort(self.edges[u], WeightedEdge(v, d))
-                    insort(self.edges[v], WeightedEdge(u, d))
-
-    def __init__(self, grid:np.array, stations:list[tuple[int,int]]):
-        """Build a graph G=(V,E) with less edges #E = #p * #V
-        Only keep edges between pylons and user equipments
-        """
-        # grid is a 2D numpy array
-        self.edges = {}
-        self.vertices = set()
-
-        # Init vertices
-        for x in range(grid.shape[0]):
-            for y in range(grid.shape[1]):
-                self.vertices.add((x,y))
-                self.edges[(x,y)] = []
-
-        # Init edges & weights
-        for u in stations:
-            for v in self.vertices:
-                # We suppose that there can't be a station on a user equipment
-                # Which will not be the case in the real world
-                if u != v and v not in stations and grid[v[0]][v[1]] > 0:
-                    d:float = dist2(u,v)
-                    insort(self.edges[u], WeightedEdge(v, d))
-                    insort(self.edges[v], WeightedEdge(u, d))
-
-    def get_adjacent(self, u):
-        """TODO
-        """
-        return self.edges[u]
-
-    def __str__(self):
-        """TODO
-        """
-        out = ""
-        for u in self.vertices:
-            out += f"{u} {self.edges[u]}\n"
-        return out
+    Returns:
+    List of sampled end users.
+    """
+    return np.dstack((np.random.uniform(0, tile_size[0], density), np.random.uniform(0, tile_size[1], density)))[0]
 
 
 class AntennaModel:
     name: str
+    power:float
     gain: float
     bandwidth: float
     reach: float # range is a reserved keyword
     alpha: float
 
-    def __init__(self, name:str, gain:float, bandwidth:float, reach:float, alpha:float):
+    def __init__(self, name:str, power:float, gain:float, bandwidth:float, reach:float, alpha:float):
         self.name = name
+        self.power = power
         self.gain = gain
         self.bandwidth = bandwidth
         self.reach = reach
@@ -110,23 +41,17 @@ class AntennaModel:
 class Topology:
     height:int
     width:int
-    grid:np.array # dim 2 array
-    pylons:dict[tuple[int,int], int]
+    tile_size:tuple[float,float] # in meters
+    density_grid:np.array # dim 2 array
+    graph:WeightedGraph
+    users:dict[tuple[float,float], tuple[float,float]|None]
+    pylons:dict[tuple[float,float], int]
     antennas:list[AntennaModel]
 
     # Constants
-    shadowing:float = 1.0
-
-    def __init__(self, h:int, w:int):
-        """Creates an empty Topology object.
-
-        Parameters:
-        width -- Width of the grid.
-        height -- Height of the grid.
-        """
-        self.height = h
-        self.width = w
-        self.grid = np.zeros((self.width, self.height), float)
+    user_demand:float = 1e6 # Constant demand across all end users
+    shadowing:float = 1.0 # TODO: check usefullness
+    loss_factor:float = 1.0 # TODO: check
 
     def __init__(self, filename:str):
         """Loads a json topology file into a Topology object.
@@ -134,18 +59,22 @@ class Topology:
         Parameters:
         filename -- File path to load.
         """
+        # Load the json file
         topo_json = json.load(open(filename, "r"))
+
+        # Load all the given JSON data
         self.height = topo_json["height"]
         self.width = topo_json["width"]
-        self.grid = np.zeros((self.width, self.height), float)
-        for user in topo_json["end_users"]:
-            self.grid[user["pos"]["x"]][user["pos"]["y"]] = user["qos"]
+        self.tile_size = (topo_json["tile_size"], topo_json["tile_size"])
+        self.user_demand = topo_json["user_demand"]
+        self.density_grid = np.array(topo_json["density"])
 
-        self.pylons = {(pylon["pos"]["x"], pylon["pos"]["y"]): -1 for pylon in topo_json["pylons"]}
+        self.pylons = {(pylon["pos"]["x"]*self.tile_size[0], pylon["pos"]["y"]*self.tile_size[1]): -1 for pylon in topo_json["pylons"]}
 
         self.antennas = [
             AntennaModel(
                 model["name"],
+                model["power"],
                 model["gain"],
                 model["bandwidth"],
                 model["range"],
@@ -153,15 +82,64 @@ class Topology:
             ) for model in topo_json["antennas"]
         ]
 
+        # Build the graph and sample end users using the density grid
+        self.graph = WeightedGraph()
+        users = []
+        for x in range(self.width):
+            for y in range(self.height):
+                if self.density_grid[y][x] != 0:
+                    su = list(map(
+                        lambda u: (x*self.tile_size[0] + u[0], y*self.tile_size[1] + u[1]),
+                        sample_users(self.tile_size, self.density_grid[y][x])
+                    ))
+                    for u in su:
+                        self.graph.add_vertex(u, self.user_demand)
+                    users += su
 
+        # Add users and their associated pylons (None in the first place)
+        self.users = {tuple(u): None for u in users}
+
+        max_reach:float = np.max(list(map(lambda a: a.reach, self.antennas)))
+
+        for p in self.pylons.keys():
+            self.graph.add_vertex(p, 0.)
+            for u in users:
+                d = dist2(p,u)
+                if d <= max_reach:
+                    self.graph.add_edge(p, u, d)
+
+        print(self.graph)
+
+# TODO: check everything
 def gain(topo:Topology, p:tuple[int,int], u:tuple[int,int]) -> float:
     """Gain received by the end user at position u from the pylon at position p.
+
+    TODO: currently taken from Anthony's paper
     """
     antenna:AntennaModel = topo.antennas[topo.pylons[p]]
     return antenna.gain * topo.shadowing * dist2(p,u)**(-antenna.alpha)
 
-def snr(topo:Topology, p:tuple[int,int], u:tuple[int,int]) -> float:
-    """TODO
+
+def pathloss(topo:Topology, p:tuple[float,float], u:tuple[float,float]) -> float:
+    """Okumura-Hata path loss model
+
+    TODO
     """
-    # The interference is not taken into account here
-    return gain(topo, p, u) / (topo.antennas[topo.pylons[p]].bandwidth * topo.noise)
+    f = topo.antennas[topo.pylons[p]].bandwidth / 2 # ?
+    H = 375 # Average altitude in France (source wikipedia)
+    d = topo.graph.edges[u].w
+    c = -5 # Suburban value found in the RF design book section 4.6.6
+    return 69.55 + 26.16*log10(f) - 13.82*log10(H) + (44.9 - 6.55*log10(H)) * log10(d) + c
+
+
+
+def snr(topo:Topology, p:tuple[int,int], u:tuple[int,int]) -> float:
+    """Signal to noise ratio not taking interferences between BS into account.
+
+    TODO
+    """
+    antenna = topo.antennas[topo.pylons[p]]
+    # How to take the `#{antennas}` into account since it modifies itself with resource allocation :/
+    S = antenna.power + 10*log10(len(topo.pylons)) + antenna.gain - pathloss(p,u) - topo.loss_factor*log10(dist2(p,u))
+    N = -174 + 10*log10(antenna.bandwidth)
+    return S / N

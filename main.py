@@ -1,7 +1,7 @@
 from sys import argv
 from os.path import isfile
 from lib.topology import Topology
-from lib.visualize import plot_topology
+from lib.visualize import plot_topology_allocation, plot_topology_density, plot_topology_graph
 from lib.arg_parser import parse_arguments
 from lib.algorithms import greedy_allocation
 
@@ -23,6 +23,9 @@ if __name__ == '__main__':
     assert(isfile(args["--topology"]))
 
     topo = Topology(args["--topology"])
-    plot_topology(topo)
+    plot_topology_density(topo)
+    plot_topology_graph(topo)
 
     print(greedy_allocation(topo))
+
+    plot_topology_allocation(topo)
