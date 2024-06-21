@@ -1,0 +1,129 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://example.com/product.schema.json",
+    "title": "Topology",
+    "description": "Scheme to write a correct topology JSON file",
+    "type": "object",
+    "properties": {
+        "width": {
+            "description": "Width of the population density grid",
+            "type": "integer"
+        },
+        "height": {
+            "description": "Height of the population density grid",
+            "type": "integer"
+        },
+        "tile_size": {
+            "description": "X and Y sizes for a density grid tile in meters",
+            "type": "object",
+            "properties": {
+                "x": {
+                    "description": "X size for a density grid tile in meters",
+                    "type": "float"
+                },
+                "y": {
+                    "description": "Y size for a density grid tile in meters",
+                    "type": "float"
+                }
+            },
+            "required": [
+                "x",
+                "y"
+            ]
+        },
+        "user_demand": {
+            "description": "User demand for the area in Mbps",
+            "type": "float"
+        },
+        "density": {
+            "description": "Population density grid with width columns and height rows",
+            "type": "array",
+            "items": {
+                "type": "array",
+                "items": {
+                    "type": "integer"
+                }
+            }
+        },
+        "pylons": {
+            "description": "List of pylons",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "pos": {
+                        "description": "Position of the pylon in the grid",
+                        "type": "object",
+                        "properties": {
+                            "x": {
+                                "description": "X coordinate of the pylon in meters",
+                                "type": "float"
+                            },
+                            "y": {
+                                "description": "Y coordinate of the pylon in meters",
+                                "type": "float"
+                            },
+                            "h": {
+                                "description": "Effective height of the pylon in meters",
+                                "type": "float"
+                            }
+                        },
+                        "required": [
+                            "x",
+                            "y",
+                            "h"
+                        ]
+                    }
+                },
+                "required": [
+                    "pos"
+                ]
+            }
+        },
+        "antennas": {
+            "description": "List of antennas",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "description": "Name of the antenna type",
+                        "type": "string"
+                    },
+                    "power": {
+                        "description": "Transmission power of the antenna in dBm",
+                        "type": "float"
+                    },
+                    "gain": {
+                        "description": "Gain of the antenna in dBi",
+                        "type": "float"
+                    },
+                    "bandwidth": {
+                        "description": "Bandwidth of the antenna in MHz",
+                        "type": "float"
+                    },
+                    "range": {
+                        "description": "Range of the antenna in meters",
+                        "type": "float"
+                    }
+                },
+                "required": [
+                    "name",
+                    "power",
+                    "gain",
+                    "bandwidth",
+                    "range"
+                ]
+            }
+        }
+    },
+    "required": [
+        "width",
+        "height",
+        "tile_size",
+        "user_demand",
+        "density",
+        "pylons",
+        "antennas"
+    ]
+}
