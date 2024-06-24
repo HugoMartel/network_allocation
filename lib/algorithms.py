@@ -1,9 +1,10 @@
 import numpy as np
 from scipy.optimize import root_scalar
-from lib.topology import Topology, AntennaModel, snr, pathloss_oh, pathloss_fs, dist2, Wcost, Wcost_prime
+from lib.topology import Topology, pathloss_oh, Wcost, Wcost_prime
 from lib.graph import WeightedGraph, WeightedEdge
 from lib.writer import write_log
 from lib.visualize import plot_allocated_bandwidth, plot_topology_allocation
+from typing import Callable
 
 
 def qos_density_graph(topo:Topology, p:tuple[float,float]) -> float:
@@ -27,17 +28,11 @@ def qos_density_graph(topo:Topology, p:tuple[float,float]) -> float:
     return sum / len(topo.graph.edges[p])
 
 
-def Wcost_simple(topo:Topology, u:tuple[float,float], p:tuple[float,float]) -> float:
-    """TODO
-    """
-    return topo.users[u].demand / np.log2(1 + snr(topo, p, u))
-
-
-def Wcost_dynamic(topo:Topology, u:tuple[float,float], p:tuple[float,float]) -> float:
+def compute_W_allocation(topo:Topology, u:tuple[float,float], p:tuple[float,float], pathloss:Callable[[Topology, tuple[float,float], tuple[float,float]], float]) -> float:
     """TODO
     """
     Q = topo.users[u].demand
-    PL = pathloss_fs(topo, p, u)
+    PL = pathloss(topo, p, u)
     N0 = -174
     antenna = topo.antennas[topo.pylons[p].antenna_type]
 
@@ -83,7 +78,7 @@ def get_closest_unallocated_ue(g:WeightedGraph, p:tuple[float,float]) -> Weighte
     return e
 
 
-def greedy_eu_bandwidth_allocation(topo:Topology, p:tuple[float,float], model:int, dynamic_cost:bool=True) -> float:
+def greedy_eu_bandwidth_allocation(topo:Topology, p:tuple[float,float], model:int, pathloss:Callable[[Topology, tuple[float,float], tuple[float,float]], float]) -> float:
     """Given an antenna, allocate bandwidth greedily starting with the closest EU.
 
     Parameters
@@ -98,8 +93,6 @@ def greedy_eu_bandwidth_allocation(topo:Topology, p:tuple[float,float], model:in
     Returns:
     The unallocated bandwidth of the Base Station
     """
-    Wcost = Wcost_dynamic if dynamic_cost else Wcost_simple
-
     # Set the antenna type and max bandwidth to allocate for the handled pylon
     topo.pylons[p].antenna_type = model
     Wmax = topo.antennas[model].bandwidth
@@ -107,7 +100,7 @@ def greedy_eu_bandwidth_allocation(topo:Topology, p:tuple[float,float], model:in
     e = get_closest_unallocated_ue(topo.graph, p)
     if e == None:
         return Wmax
-    Wc = Wcost(topo, e.v, p)
+    Wc = compute_W_allocation(topo, e.v, p, pathloss)
 
     plot_allocated_bandwidth(topo, p, e.v)
 
@@ -122,14 +115,14 @@ def greedy_eu_bandwidth_allocation(topo:Topology, p:tuple[float,float], model:in
         e = get_closest_unallocated_ue(topo.graph, p)
         if e == None:
             return Wmax
-        Wc = Wcost(topo, e.v, p)
+        Wc = compute_W_allocation(topo, e.v, p, pathloss)
     # Remove the remaining edges since the BS is already saturated
     topo.graph.edges[p] = []
     write_log(f"Can't allocate {Wc} MHz of bandwidth to {e.v}")# DEBUG
     return Wmax
 
 
-def greedy_allocation(topo:Topology) -> dict[tuple[float,float],str]:
+def greedy_allocation(topo:Topology, pathloss:Callable[[Topology, tuple[float,float], tuple[float,float]], float]) -> dict[tuple[float,float],str]:
     """Greedy algorithm to allocate pylons to end users.
 
     Parameters:
@@ -155,7 +148,7 @@ def greedy_allocation(topo:Topology) -> dict[tuple[float,float],str]:
     #return {sorted_pylons[0][0]: (topo.antennas[antenna_model].name, left_bandwidth, topo.antennas[antenna_model].bandwidth)}
 
     for p in sorted_pylons:
-        greedy_eu_bandwidth_allocation(topo, p[0], antenna_model, True)
+        greedy_eu_bandwidth_allocation(topo, p[0], antenna_model, pathloss)
         plot_topology_allocation(topo)
 
     # TODO: redo and rethink it

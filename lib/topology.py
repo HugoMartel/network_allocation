@@ -1,5 +1,6 @@
 import numpy as np
 import json
+from typing import Callable
 from lib.graph import WeightedGraph
 from lib.writer import write_log
 
@@ -106,7 +107,7 @@ class Topology:
     tile_size:tuple[float,float]
     """(X,Y) size in meters of a density grid tile."""
     user_demand:float
-    """Demand of a user equipment in MHz."""
+    """Demand of a user equipment in Hz."""
     density_grid:np.array
     """2-dimensional density grid of end users."""
     graph:WeightedGraph
@@ -209,7 +210,7 @@ def pathloss_fs(topo:Topology, p:tuple[float,float], u:tuple[float,float]) -> fl
     # f = 3.5e9 # 3.5 GHz - ARCEP 5G urban model IN Hz
     f = 1.5e9 # 1.5 GHz - Okumura-Hata model upper bound IN Hz
     PL0 = 10*np.log10((4*np.pi*f)/(3*10**8))
-    d = dist2(p,u) # Convert distance between BS and UE
+    d = dist2(p,u) # Convert distance between BS and UE in meters
     return alpha * (PL0 + 10 * np.log10(d))
 
 
@@ -225,25 +226,33 @@ def pathloss_simple(topo:Topology, p:tuple[float,float], u:tuple[float,float]) -
     eta = 3. # Loss factor
     f = 1500 # 1.5 GHz - Okumura-Hata model upper bound IN MHz
     H = topo.pylons[p].height # Effective antenna height of the BS in meters (given by ARCEP2021)
-    d = .1 # 100m in km0
+    d = 0.1 # 100m in km
     PL0 = 69.55 + 26.16*np.log10(f) - 13.82*np.log10(H) + (44.9 - 6.55*np.log10(H)) * np.log10(d)
     return PL0 + eta*np.log10(dist2(p,u))
 
 
-def snr(topo:Topology, p:tuple[int,int], u:tuple[int,int]) -> float:
+def snr(topo:Topology, p:tuple[int,int], u:tuple[int,int], pathloss:Callable[[Topology, tuple[float,float], tuple[float,float]], float]) -> float:
     """Signal to Noise Ratio (SNR) not taking interferences between BS into account.
 
-    Parameters:
-    TODO
+    Parameters
+    ----------
+    topo
+        Topology object.
+    p
+        Position of the BS.
+    u
+        Position of the UE.
+    pathloss
+        Path loss model to use.
 
-    Returns:
-    float -- Linear SNR value.
+    Returns
+    -------
+    Linear SNR value.
     """
     antenna = topo.antennas[topo.pylons[p].antenna_type]
     N0 = -174 # dBm/Hz
-    SdB = antenna.power + antenna.gain - pathloss_fs(topo, p,u)
-    NdB = N0 * antenna.bandwidth
-    #return S / N
+    SdB = antenna.power + antenna.gain - pathloss(topo, p,u)
+    NdB = N0 + 10*np.log10(antenna.bandwidth)
     return np.float_power(10, (SdB - NdB)/10)
 
 
@@ -265,7 +274,7 @@ def Wcost(x:float, Q:float, N0:float, S:float) -> float:
     -------
     Cost value.
     """
-    print(x)
+    #print(x)
     return 10*np.log10(np.power(2, Q/x) - 1) + N0*x - S
 
 

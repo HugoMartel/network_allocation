@@ -32,7 +32,7 @@
             ]
         },
         "user_demand": {
-            "description": "User demand for the area in Mbps",
+            "description": "User demand for the area in bits per second",
             "type": "float"
         },
         "density": {
@@ -99,7 +99,7 @@
                         "type": "float"
                     },
                     "bandwidth": {
-                        "description": "Bandwidth of the antenna in MHz",
+                        "description": "Bandwidth of the antenna in Hz",
                         "type": "float"
                     },
                     "range": {
