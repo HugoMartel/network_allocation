@@ -37,10 +37,11 @@ def compute_W_allocation(topo:Topology, u:tuple[float,float], p:tuple[float,floa
     antenna = topo.antennas[topo.pylons[p].antenna_type]
 
     f = lambda x: Wcost(x, Q, N0, antenna.power + antenna.gain - PL)
-    df = lambda x: Wcost_prime(x, Q, N0)
+    df = lambda x: Wcost_prime(x, Q)
 
-    opt_res = root_scalar(f, fprime=df, x0=Q)
-    #opt_res = root_scalar(f, x0=Q)
+    opt_res = root_scalar(f, fprime=df, x0=0.3/2*Q, bracket=[0.001, antenna.bandwidth])
+    #opt_res = root_scalar(f, x0=0.3/2*Q, bracket=[0.001, antenna.bandwidth])
+
     if not opt_res.converged or opt_res.root < 0:
         print(f"ERROR WHEN CALLING THE SOLVER")
         write_log(f"ERROR WHEN CALLING THE SOLVER\n")
@@ -90,7 +91,8 @@ def greedy_eu_bandwidth_allocation(topo:Topology, p:tuple[float,float], model:in
     model
         Antenna model id to use for the given pylon.
 
-    Returns:
+    Returns
+    -------
     The unallocated bandwidth of the Base Station
     """
     # Set the antenna type and max bandwidth to allocate for the handled pylon
@@ -106,7 +108,7 @@ def greedy_eu_bandwidth_allocation(topo:Topology, p:tuple[float,float], model:in
 
     # While we have enough bandwidth to allocate
     while Wmax > Wc:
-        write_log(f"Allocating {Wc}/{Wmax} MHz of bandwidth to {e.v}")
+        write_log(f"Allocating {Wc:.2f}/{Wmax:.2f} Hz of bandwidth to {e.v}")
         Wmax -= Wc
         # Reverse the edge to keep the allocation information
         topo.users[e.v].pylon = p
@@ -118,18 +120,22 @@ def greedy_eu_bandwidth_allocation(topo:Topology, p:tuple[float,float], model:in
         Wc = compute_W_allocation(topo, e.v, p, pathloss)
     # Remove the remaining edges since the BS is already saturated
     topo.graph.edges[p] = []
-    write_log(f"Can't allocate {Wc} MHz of bandwidth to {e.v}")# DEBUG
+    write_log(f"Can't allocate {Wc:.2f} Hz of bandwidth to {e.v}")# DEBUG
     return Wmax
 
 
 def greedy_allocation(topo:Topology, pathloss:Callable[[Topology, tuple[float,float], tuple[float,float]], float]) -> dict[tuple[float,float],str]:
     """Greedy algorithm to allocate pylons to end users.
 
-    Parameters:
-    topo -- Topology object.
+    Parameters
+    ----------
+    topo
+        Topology object.
 
-    Returns:
-    dict -- Pylons allocation.
+    Returns
+    -------
+    dict
+        Pylons allocation.
     """
     # Compute the qos constraint density for each pylon
     # Simple formula : mean of all the qos constraints with all the neighbours
@@ -148,13 +154,23 @@ def greedy_allocation(topo:Topology, pathloss:Callable[[Topology, tuple[float,fl
     #return {sorted_pylons[0][0]: (topo.antennas[antenna_model].name, left_bandwidth, topo.antennas[antenna_model].bandwidth)}
 
     for p in sorted_pylons:
-        greedy_eu_bandwidth_allocation(topo, p[0], antenna_model, pathloss)
+        # Allocate and write the remaining bandwidth in the graph
+        topo.graph.vertices[p[0]] = greedy_eu_bandwidth_allocation(topo, p[0], antenna_model, pathloss)
         plot_topology_allocation(topo)
 
-    # TODO: redo and rethink it
-    #for u in topo.graph.vertices:
-    #    if topo.graph.edges[u] != [] and u not in topo.pylons.keys():
-    #        return []
-    #return [ p for p,a in topo.pylons.items() if a != -1]
-    return {}# TODO
+    for ue in topo.users.values():
+        if ue.pylon == None:
+            print("Allocation was unsuccessful...")
+            return {}
 
+    # Print pylons information
+    tmp_pylons_info = {p: 0 for p in topo.pylons.keys()}
+    for u in topo.users.values():
+        if u.pylon != None:
+            tmp_pylons_info[u.pylon] += 1
+    for p, pylon in topo.pylons.items():
+        print(f"{p}: Serving {tmp_pylons_info[p]} users, {topo.antennas[pylon.antenna_type].bandwidth-topo.graph.vertices[p]:.2f}/{topo.antennas[pylon.antenna_type].bandwidth:.2f}")
+
+    return {
+        p: f"{topo.antennas[pylon.antenna_type].name}: Serving {tmp_pylons_info[p]} users, {topo.antennas[pylon.antenna_type].bandwidth-topo.graph.vertices[p]:.2f}/{topo.antennas[pylon.antenna_type].bandwidth:.2f}"
+        for p, pylon in topo.pylons.items() }

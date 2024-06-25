@@ -92,7 +92,7 @@ def plot_topology_allocation(topo:Topology):
     ax.plot(x, y, c='black', marker=r'$\bullet$', markersize=3, linestyle='none', label='User Equipments')
 
     max_bandwidth = np.max(list(map(lambda a: a.bandwidth, topo.antennas)))
-    cbar = fig.colorbar(None, ax=ax, location='right', label='Allocated bandwidth (MHz)', cmap=test_cmap, norm=Normalize(0, max_bandwidth))
+    cbar = fig.colorbar(None, ax=ax, location='right', label='Allocated bandwidth (Hz)', cmap=test_cmap, norm=Normalize(0, max_bandwidth))
     cbar.minorticks_on()
 
     ax.set_xlabel('x position')
@@ -119,15 +119,15 @@ def plot_allocated_bandwidth(topo:Topology, p:tuple[float,float], u:tuple[float,
     d = dist2(p,u)
 
     # Plot allocations
-    x = np.linspace(.001, antenna.bandwidth, 1000)
+    x = np.linspace(1000, Q, 1000)
 
     f = lambda x: Wcost(x, Q, N0, antenna.power + antenna.gain - PL)
-    df = lambda x: Wcost_prime(x, Q, N0)
+    df = lambda x: Wcost_prime(x, Q)
 
     # Plot points
     ax.plot(x, f(x), '-', c='red', label=f'UE at {d}m from BS')
 
-    ax.set_xlabel('$w$ - Allocated bandwidth (MHz)')
+    ax.set_xlabel('$w$ - Allocated bandwidth (Hz)')
     ax.set_ylabel('$f(w)$')
     ax.grid(True)
     #ax.legend()
@@ -140,16 +140,17 @@ def plot_allocated_bandwidth(topo:Topology, p:tuple[float,float], u:tuple[float,
     axprime.plot(x, df(x), '-', c='blue', label=f'Derivative of the function')
     axprime.plot(x, [0 for _ in x], '--', c='black', label='y=0')
 
-    opt_res = root_scalar(f, fprime=df, x0=Q)
+    opt_res = root_scalar(f, fprime=df, x0=0.3/2*Q, bracket=[0.001, antenna.bandwidth])
+    #opt_res = root_scalar(f, x0=0.3/2*Q, bracket=[0.001, antenna.bandwidth])
 
     if opt_res.converged:
-        ax.axvline(x=opt_res.root, c='green', label=f'Optimal bandwidth {opt_res.root:.2f} MHz')
-        axprime.axvline(x=opt_res.root, c='green', label=f'Optimal bandwidth {opt_res.root:.2f} MHz')
-        print(f"Bandwidth to allocate: {opt_res.root} MHz")
+        ax.axvline(x=opt_res.root, c='green', label=f'Optimal bandwidth {opt_res.root:.2f} Hz')
+        axprime.axvline(x=opt_res.root, c='green', label=f'Optimal bandwidth {opt_res.root:.2f} Hz')
+        print(f"Bandwidth to allocate: {opt_res.root} Hz")
     else:
         print("ERROR: the solver did not converge, can't plot")
 
-    axprime.set_xlabel('$w$ - Allocated bandwidth (MHz)')
+    axprime.set_xlabel('$w$ - Allocated bandwidth (Hz)')
     axprime.set_ylabel('$f\'(w)$')
     axprime.grid(True)
 

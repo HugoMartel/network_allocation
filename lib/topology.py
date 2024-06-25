@@ -49,7 +49,7 @@ class AntennaModel:
     gain: float
     """Gain of the antenna in dBi."""
     bandwidth: float
-    """Bandwidth of the antenna in MHz."""
+    """Bandwidth of the antenna in Hz."""
     reach: float
     """Reach of the antenna in meters (range is a reserved keyword)."""
 
@@ -87,7 +87,7 @@ class User:
     pylon:tuple[float,float]|None
     """(x,y) Position of the pylon associated to the user or None."""
     demand:float
-    """Bandwidth demand of the user in MHz."""
+    """Bandwidth demand of the user in Hz."""
 
     def __init__(self, pos:tuple[float,float], pylon:tuple[float,float]|None, demand:float):
         """Constructor of the User class."""
@@ -226,7 +226,7 @@ def pathloss_simple(topo:Topology, p:tuple[float,float], u:tuple[float,float]) -
     eta = 3. # Loss factor
     f = 1500 # 1.5 GHz - Okumura-Hata model upper bound IN MHz
     H = topo.pylons[p].height # Effective antenna height of the BS in meters (given by ARCEP2021)
-    d = 0.1 # 100m in km
+    d = 1 # 100m in km
     PL0 = 69.55 + 26.16*np.log10(f) - 13.82*np.log10(H) + (44.9 - 6.55*np.log10(H)) * np.log10(d)
     return PL0 + eta*np.log10(dist2(p,u))
 
@@ -262,9 +262,9 @@ def Wcost(x:float, Q:float, N0:float, S:float) -> float:
     Parameters
     ----------
     x
-        Bandwidth to allocate in MHz.
+        Bandwidth to allocate in Hz.
     Q
-        User equipment demand in MHz.
+        User equipment demand in bits per second.
     N0
         Noise density in dBm/Hz.
     S
@@ -274,25 +274,23 @@ def Wcost(x:float, Q:float, N0:float, S:float) -> float:
     -------
     Cost value.
     """
-    #print(x)
-    return 10*np.log10(np.power(2, Q/x) - 1) + N0*x - S
+    y = np.power(2., Q/x)
+    return 10*np.log10(x*(y - 1.)) - S + N0
 
 
-def Wcost_prime(x:float, Q:float, N0:float) -> float:
+def Wcost_prime(x:float, Q:float) -> float:
     """Compute the derivative of the cost function for given topology parameters.
 
     Parameters
     ----------
     x
-        Bandwidth to allocate in MHz.
+        Bandwidth to allocate in Hz.
     Q
-        User equipment demand in MHz.
-    N0
-        Noise density in dBm/Hz.
+        User equipment demand in bits per second.
 
     Returns
     -------
     Derivative of the cost function.
     """
-    K = (10*Q*np.log(2)/np.log(10))
-    return N0 - K * (np.power(2, Q/x)) / (x*x*(np.power(2, Q/x) - 1))
+    y = np.power(2., Q/x)
+    return 10./np.log(10.) * (1./x - y*np.log(2.)/(x*x * (y - 1.)))
