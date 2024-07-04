@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import root_scalar
-from lib.topology import Topology, pathloss_oh, Wcost, Wcost_prime
+from lib.topology import Topology, Wcost, Wcost_prime, Wlimit
 from lib.graph import WeightedGraph, WeightedEdge
 from lib.writer import write_log
 from lib.visualize import plot_allocated_bandwidth, plot_topology_allocation
@@ -31,23 +31,32 @@ def qos_density_graph(topo:Topology, p:tuple[float,float]) -> float:
 def compute_W_allocation(topo:Topology, u:tuple[float,float], p:tuple[float,float], pathloss:Callable[[Topology, tuple[float,float], tuple[float,float]], float]) -> float:
     """TODO
     """
-    Q = topo.users[u].demand
+    a = 1
+    C = a*topo.users[u].demand
     PL = pathloss(topo, p, u)
     N0 = -174
     antenna = topo.antennas[topo.pylons[p].antenna_type]
+    S = antenna.power + antenna.gain - PL
 
-    f = lambda x: Wcost(x, Q, N0, antenna.power + antenna.gain - PL)
-    df = lambda x: Wcost_prime(x, Q)
+    # Compute the limit at infinity
+    lim = Wlimit(C, N0, S)
+    if lim <= 0:
 
-    opt_res = root_scalar(f, fprime=df, x0=0.3/2*Q, bracket=[0.001, antenna.bandwidth])
-    #opt_res = root_scalar(f, x0=0.3/2*Q, bracket=[0.001, antenna.bandwidth])
+        #nx0 = 100
+        #opt_res = root_scalar(Wcost, fprime=Wcost_prime, x0=np.array([C*i/nx0 for i in range(1,nx0+1)]), args=(C, N0, S))
+        opt_res = root_scalar(Wcost, fprime=Wcost_prime, x0=0.5*C, args=(C, N0, S), bracket=[1, 1e22])
 
-    if not opt_res.converged or opt_res.root < 0:
-        print(f"ERROR WHEN CALLING THE SOLVER")
-        write_log(f"ERROR WHEN CALLING THE SOLVER\n")
-        write_log(f"{opt_res.flag}\n")
-        return 0
-    return opt_res.root
+        if opt_res.converged:
+            print(f"Allocating {opt_res.root:.2f} Hz of bandwidth to {u}")
+            write_log(f"Allocating {opt_res.root:.2f} Hz of bandwidth to {u}")
+            return opt_res.root
+        else:
+            print(f"ERROR: the solver did not converge")
+            print(f"{opt_res.flag}: {opt_res.root}\nC={C}, PL={PL}, N0={N0}, S={S}")
+            write_log(f"ERROR: the solver did not converge")
+            write_log(f"{opt_res.flag}: {opt_res.root}\nC={C}, PL={PL}, N0={N0}, S={S}")
+
+    return antenna.bandwidth + 1# Return a value that will be considered as too big to allocate
 
 
 def get_closest_unallocated_ue(g:WeightedGraph, p:tuple[float,float]) -> WeightedEdge:
@@ -104,7 +113,7 @@ def greedy_eu_bandwidth_allocation(topo:Topology, p:tuple[float,float], model:in
         return Wmax
     Wc = compute_W_allocation(topo, e.v, p, pathloss)
 
-    plot_allocated_bandwidth(topo, p, e.v)
+    plot_allocated_bandwidth(topo, p, e.v, pathloss)
 
     # While we have enough bandwidth to allocate
     while Wmax > Wc:
@@ -158,11 +167,6 @@ def greedy_allocation(topo:Topology, pathloss:Callable[[Topology, tuple[float,fl
         topo.graph.vertices[p[0]] = greedy_eu_bandwidth_allocation(topo, p[0], antenna_model, pathloss)
         plot_topology_allocation(topo)
 
-    for ue in topo.users.values():
-        if ue.pylon == None:
-            print("Allocation was unsuccessful...")
-            return {}
-
     # Print pylons information
     tmp_pylons_info = {p: 0 for p in topo.pylons.keys()}
     for u in topo.users.values():
@@ -170,6 +174,11 @@ def greedy_allocation(topo:Topology, pathloss:Callable[[Topology, tuple[float,fl
             tmp_pylons_info[u.pylon] += 1
     for p, pylon in topo.pylons.items():
         print(f"{p}: Serving {tmp_pylons_info[p]} users, {topo.antennas[pylon.antenna_type].bandwidth-topo.graph.vertices[p]:.2f}/{topo.antennas[pylon.antenna_type].bandwidth:.2f}")
+
+    for u in topo.users.values():
+        if u.pylon == None:
+            print("Allocation was unsuccessful...")
+            return {}
 
     return {
         p: f"{topo.antennas[pylon.antenna_type].name}: Serving {tmp_pylons_info[p]} users, {topo.antennas[pylon.antenna_type].bandwidth-topo.graph.vertices[p]:.2f}/{topo.antennas[pylon.antenna_type].bandwidth:.2f}"

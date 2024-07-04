@@ -105,6 +105,10 @@
                     "range": {
                         "description": "Range of the antenna in meters",
                         "type": "float"
+                    },
+                    "directional": {
+                        "description": "Horizontal field of view of the antenna in degrees",
+                        "type": "float"
                     }
                 },
                 "required": [
@@ -112,7 +116,8 @@
                     "power",
                     "gain",
                     "bandwidth",
-                    "range"
+                    "range",
+                    "directional"
                 ]
             }
         }

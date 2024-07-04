@@ -10,6 +10,6 @@
         {"pos": {"x": 500, "y": 0.5, "h": 30}}
     ],
     "antennas": [
-        {"name": "5G", "power": 23, "gain": 0, "bandwidth": 1e8, "range": 10000}
+        {"name": "5G", "power": 23, "gain": 0, "bandwidth": 1e7, "range": 10000, "directional": 360}
     ]
 }

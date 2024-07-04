@@ -200,10 +200,17 @@ def pathloss_oh(topo:Topology, p:tuple[float,float], u:tuple[float,float]) -> fl
 def pathloss_fs(topo:Topology, p:tuple[float,float], u:tuple[float,float]) -> float:
     """Free Space Path Loss model.
 
-    Parameters:
-    TODO
+    Parameters
+    ----------
+    topo
+        Topology object.
+    p
+        Position of the BS.
+    u
+        Position of the UE.
 
-    Returns:
+    Returns
+    -------
     Path loss value in decibels.
     """
     alpha = 3. # Path loss exponent in an urban environment
@@ -226,7 +233,7 @@ def pathloss_simple(topo:Topology, p:tuple[float,float], u:tuple[float,float]) -
     eta = 3. # Loss factor
     f = 1500 # 1.5 GHz - Okumura-Hata model upper bound IN MHz
     H = topo.pylons[p].height # Effective antenna height of the BS in meters (given by ARCEP2021)
-    d = 1 # 100m in km
+    d = 1 # 1km
     PL0 = 69.55 + 26.16*np.log10(f) - 13.82*np.log10(H) + (44.9 - 6.55*np.log10(H)) * np.log10(d)
     return PL0 + eta*np.log10(dist2(p,u))
 
@@ -253,17 +260,58 @@ def snr(topo:Topology, p:tuple[int,int], u:tuple[int,int], pathloss:Callable[[To
     N0 = -174 # dBm/Hz
     SdB = antenna.power + antenna.gain - pathloss(topo, p,u)
     NdB = N0 + 10*np.log10(antenna.bandwidth)
-    return np.float_power(10, (SdB - NdB)/10)
+    return np.power(10, (SdB - NdB)/10)
 
 
-def Wcost(x:float, Q:float, N0:float, S:float) -> float:
-    """Compute the cost function for given topology parameters.
+def Wsimple(x:float, C:float, N0:float, S:float) -> float:
+    """TODO
 
     Parameters
     ----------
     x
         Bandwidth to allocate in Hz.
-    Q
+    C
+        User equipment demand in bits per second.
+    N0
+        Noise density in dBm/Hz.
+    S
+        Signal power in dB.
+
+    Returns
+    -------
+    Cost value with static allocated BS bandwidth
+    """
+    W = 10e6
+    return 10*np.log10(W*(np.power(2., C/x) - 1.)) - S + N0
+
+
+def Wlimit(C:float, N0:float, S:float) -> float:
+    """Compute the limit at infinity of the cost function.
+
+    Parameters
+    ----------
+    C
+        User equipment demand in bits per second.
+    N0
+        Noise density in dBm/Hz.
+    S
+        Signal power in dB.
+
+    Returns
+    -------
+    Limit value.
+    """
+    return 10*np.log10(C*np.log(2)) - S + N0
+
+
+def Wcost(w:float, C:float, N0:float, S:float) -> float:
+    """Compute the cost function for given topology parameters.
+
+    Parameters
+    ----------
+    w
+        Bandwidth to allocate in Hz.
+    C
         User equipment demand in bits per second.
     N0
         Noise density in dBm/Hz.
@@ -274,23 +322,26 @@ def Wcost(x:float, Q:float, N0:float, S:float) -> float:
     -------
     Cost value.
     """
-    y = np.power(2., Q/x)
-    return 10*np.log10(x*(y - 1.)) - S + N0
+    print(f"CALL f({w})")
+    return 10*np.log10(w*(np.power(2, C/w) - 1)) - S + N0
 
 
-def Wcost_prime(x:float, Q:float) -> float:
+def Wcost_prime(w:float, C:float, N0:float, S:float) -> float:
     """Compute the derivative of the cost function for given topology parameters.
 
     Parameters
     ----------
-    x
+    w
         Bandwidth to allocate in Hz.
-    Q
+    C
         User equipment demand in bits per second.
+    N0
+        Noise density in dBm/Hz.
+    S
+        Signal power in dB.
 
     Returns
     -------
     Derivative of the cost function.
     """
-    y = np.power(2., Q/x)
-    return 10./np.log(10.) * (1./x - y*np.log(2.)/(x*x * (y - 1.)))
+    return 10/np.log(10) * ( 1/w - C*np.log(2) / (w*w) * ( 1 + 1 / (np.power(2, C/w) - 1)) )

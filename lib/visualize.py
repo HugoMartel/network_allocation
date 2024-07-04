@@ -4,7 +4,7 @@ from matplotlib.colors import LinearSegmentedColormap, Normalize
 import seaborn as sns
 import numpy as np
 from scipy.optimize import root_scalar
-from lib.topology import Topology, pathloss_oh, pathloss_fs, pathloss_simple, dist2, snr, Wcost, Wcost_prime
+from lib.topology import Topology, Wlimit, pathloss_oh, pathloss_fs, pathloss_simple, dist2, snr, Wcost, Wcost_prime
 
 # Global setup
 plt.ioff()
@@ -13,6 +13,8 @@ plt.rcParams.update({'font.size': 20})
 
 
 def plot_topology_density(topo:Topology) -> None:
+    """TODO
+    """
     fig = plt.figure()
     ax = fig.add_subplot()
 
@@ -32,6 +34,8 @@ def plot_topology_density(topo:Topology) -> None:
 
 
 def plot_topology_graph(topo:Topology) -> None:
+    """TODO
+    """
     fig = plt.figure()
     ax = fig.add_subplot()
 
@@ -58,6 +62,8 @@ def plot_topology_graph(topo:Topology) -> None:
 
 
 def plot_topology_allocation(topo:Topology):
+    """TODO
+    """
     fig = plt.figure()
     ax = fig.add_subplot()
 
@@ -108,56 +114,86 @@ def plot_topology_allocation(topo:Topology):
     plt.show()
 
 
-def plot_allocated_bandwidth(topo:Topology, p:tuple[float,float], u:tuple[float,float]) -> None:
+def plot_allocated_bandwidth(topo:Topology, p:tuple[float,float], u:tuple[float,float], pathloss) -> None:
+    """TODO
+
+    Parameters
+    ----------
+    topo
+        The topology of the network
+    p
+        The position of the pylon
+    u
+        The position of the user
+    pathloss
+        The pathloss function to use
+    """
     fig, (ax, axprime) = plt.subplots(1,2, figsize=(16,6))
 
     # Constants
-    Q = topo.users[u].demand
-    PL = pathloss_oh(topo, p, u)
+    a = 1
+    C = a*topo.users[u].demand
+    PL = pathloss(topo, p, u)
     N0 = -174
     antenna = topo.antennas[topo.pylons[p].antenna_type]
+    S = antenna.power + antenna.gain - PL
     d = dist2(p,u)
 
     # Plot allocations
-    x = np.linspace(1000, Q, 1000)
+    x = np.linspace(1000, C, 1000)
 
-    f = lambda x: Wcost(x, Q, N0, antenna.power + antenna.gain - PL)
-    df = lambda x: Wcost_prime(x, Q)
+    # Function plot
+    ax.plot(x, [ Wcost(w, C, N0, S) for w in x ], '-', c='red')
+    lim = Wlimit(C, N0, S)
+    ax.plot(x, np.full_like(x, lim), '--', c='black', label='$\\lim_{w \\to \\infty} f(w)$')
 
-    # Plot points
-    ax.plot(x, f(x), '-', c='red', label=f'UE at {d}m from BS')
+    # Derivative plot
+    axprime.plot(x, [ Wcost_prime(w, C, N0, S) for w in x ], '-', c='blue')
+    axprime.plot(x, np.zeros_like(x), '--', c='black')
+
+    # Call the solver if there exists a root for f
+    root_value = antenna.bandwidth + 1
+    if lim <= 0.:
+        try:
+            #nx0 = 100
+            #opt_res = root_scalar(Wcost, fprime=Wcost_prime, x0=np.array([C*i/nx0 for i in range(1,nx0+1)]), args=(C, N0, S))
+            opt_res = root_scalar(Wcost, fprime=Wcost_prime, x0=0.5*C, args=(C, N0, S), bracket=[1, 1e22])
+        except ValueError:
+            print("ERROR when calling the solver")
+            print(f"C={C}, N0={N0}, S={S}")
+            print("----------------------")
+
+        # Handle the solver result and plot the root
+        if opt_res.converged:
+            root_value = opt_res.root
+        else:
+            print("The solver did not converge, can't plot root, defaults to W+1")
+
+    print(f"Bandwidth to allocate: {root_value} Hz")
+    ax.axvline(x=root_value, c='green')
+    axprime.axvline(x=root_value, c='green', label=f'Allocated bandwidth')
 
     ax.set_xlabel('$w$ - Allocated bandwidth (Hz)')
     ax.set_ylabel('$f(w)$')
     ax.grid(True)
-    #ax.legend()
-    #ax.set_title(
-    #    "BS's bandwidth to allocate to a given UE",
-    #    loc='left',
-    #    weight='bold'
-    #)
-
-    axprime.plot(x, df(x), '-', c='blue', label=f'Derivative of the function')
-    axprime.plot(x, [0 for _ in x], '--', c='black', label='y=0')
-
-    opt_res = root_scalar(f, fprime=df, x0=0.3/2*Q, bracket=[0.001, antenna.bandwidth])
-    #opt_res = root_scalar(f, x0=0.3/2*Q, bracket=[0.001, antenna.bandwidth])
-
-    if opt_res.converged:
-        ax.axvline(x=opt_res.root, c='green', label=f'Optimal bandwidth {opt_res.root:.2f} Hz')
-        axprime.axvline(x=opt_res.root, c='green', label=f'Optimal bandwidth {opt_res.root:.2f} Hz')
-        print(f"Bandwidth to allocate: {opt_res.root} Hz")
-    else:
-        print("ERROR: the solver did not converge, can't plot")
+    ax.legend()
+    ax.set_title(
+        f"BS's bandwidth to allocate to a given UE at {d:.0f}m",
+        loc='left',
+        weight='bold'
+    )
 
     axprime.set_xlabel('$w$ - Allocated bandwidth (Hz)')
     axprime.set_ylabel('$f\'(w)$')
     axprime.grid(True)
+    axprime.legend()
 
     plt.show()
 
 
 def plot_throughput(topo:Topology):
+    """TODO
+    """
     # Compute values
     x = []
     pathlosses = {"OH": pathloss_oh, "FS": pathloss_fs, "Simple": pathloss_simple}
