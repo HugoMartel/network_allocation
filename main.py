@@ -9,9 +9,9 @@ from lib.writer import *
 if __name__ == '__main__':
     args = parse_arguments(
         [
-            ("--topology", "Sets the topology file to read", str),
-            ("--out", "Sets the output file to write to", str),
             ("--verbose", "Sets the verbosity of the program", None),
+            ("--topology", "Sets the JSON topology file to read", str),
+            ("--antennas", "Sets the JSON antenna models file to read", str),
             ("--pathloss", "Sets the pathloss model to use", str)
         ],
         argv,
@@ -27,10 +27,14 @@ if __name__ == '__main__':
     if "--verbose" in args:
         print(f"Loading topology from {args['--topology']}...")
 
+    assert isfile(args["--antennas"])
+    if "--verbose" in args:
+        print(f"Loading antenna models from {args['--antennas']}...")
+
     reset_output_files(["allocation.txt"])
 
     # Load the topology and the structure
-    topo = Topology(args["--topology"])
+    topo = Topology(args["--topology"], args["--antennas"])
     plot_topology_density(topo)
     plot_topology_graph(topo)
 

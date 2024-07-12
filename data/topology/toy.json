@@ -21,8 +21,5 @@
         {"pos": {"x": 100, "y": 200, "h": 30}},
         {"pos": {"x": 400, "y": 400, "h": 30}},
         {"pos": {"x": 1000, "y": 100,"h": 30}}
-    ],
-    "antennas": [
-        {"name": "5G", "power": 23, "gain": 0, "bandwidth": 1e7, "range": 10000, "directional": 120}
     ]
 }

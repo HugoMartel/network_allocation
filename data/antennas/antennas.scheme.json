@@ -1,0 +1,47 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://example.com/product.schema.json",
+    "title": "Antennas",
+    "description": "Scheme to write a correct antennas models JSON file",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "items": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "description": "Name of the antenna type",
+                    "type": "string"
+                },
+                "power": {
+                    "description": "Transmission power of the antenna in dBm",
+                    "type": "float"
+                },
+                "gain": {
+                    "description": "Gain of the antenna in dBi",
+                    "type": "float"
+                },
+                "bandwidth": {
+                    "description": "Bandwidth of the antenna in Hz",
+                    "type": "float"
+                },
+                "range": {
+                    "description": "Range of the antenna in meters",
+                    "type": "float"
+                },
+                "fov": {
+                    "description": "Horizontal field of view of the antenna in degrees",
+                    "type": "float"
+                }
+            },
+            "required": [
+                "name",
+                "power",
+                "gain",
+                "bandwidth",
+                "range",
+                "fov"
+            ]
+        }
+    }
+}

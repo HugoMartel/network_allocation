@@ -119,16 +119,19 @@ class Topology:
     antennas:list[AntennaModel]
     """List of available antennas models."""
 
-    def __init__(self, filename:str):
+    def __init__(self, topo_filename:str, antennas_filename:str):
         """Loads a json topology file into a Topology object.
 
         Arguments
         ---------
-        filename
-            File path to load.
+        topo_filename
+            JSON topology file to load.
+        antennas_filename
+            JSON antenna models file to load.
         """
-        # Load the json file
-        topo_json = json.load(open(filename, "r"))
+        # Load the json files
+        topo_json = json.load(open(topo_filename, "r"))
+        antennas_json = json.load(open(antennas_filename, "r"))
 
         # Load all the given JSON data
         self.height = topo_json["height"]
@@ -148,7 +151,7 @@ class Topology:
                 model["gain"],
                 model["bandwidth"],
                 model["range"]
-            ) for model in topo_json["antennas"]
+            ) for model in antennas_json
         ]
 
         # Build the graph and sample end users using the density grid
@@ -178,6 +181,7 @@ class Topology:
                 if d <= max_reach:
                     self.graph.add_edge(p, u, d)
 
+        # Export the graph for future plotting
         write_log(self.graph)
 
 
@@ -322,7 +326,7 @@ def Wcost(w:float, C:float, N0:float, S:float) -> float:
     -------
     Cost value.
     """
-    print(f"CALL f({w})")
+    # print(f"CALL f({w})")
     return 10*np.log10(w*(np.power(2, C/w) - 1)) - S + N0
 
 
