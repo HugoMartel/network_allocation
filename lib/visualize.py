@@ -8,7 +8,7 @@ from lib.topology import Topology, Wlimit, pathloss_oh, pathloss_fs, pathloss_si
 
 # Global setup
 plt.ioff()
-sns.set_theme(font_scale=1.8)
+sns.set_theme(font_scale=3.)
 plt.rcParams.update({'font.size': 20})
 
 
@@ -52,11 +52,11 @@ def plot_topology_graph(topo:Topology) -> None:
     ymax = topo.height*topo.tile_size[1]
     ax.set_xlim(0-xmax/100, xmax+xmax/100)
     ax.set_ylim(0-ymax/100, ymax+ymax/100)
-    ax.set_title(
-        "Topology of the network",
-        loc='left',
-        weight='bold'
-    )
+    # ax.set_title(
+    #     "Topology of the network",
+    #     loc='left',
+    #     weight='bold'
+    # )
 
     plt.show(block=False)
 
@@ -191,33 +191,39 @@ def plot_allocated_bandwidth(topo:Topology, p:tuple[float,float], u:tuple[float,
     plt.show()
 
 
-def plot_throughput(topo:Topology):
+def plot_measures(topo:Topology):
     """TODO
     """
     # Compute values
-    x = []
+    x = []# Users positions on one axis
+    # Path loss models to take into account
     pathlosses = {"OH": pathloss_oh, "FS": pathloss_fs, "Simple": pathloss_simple}
-    y = {"OH": [], "FS": [], "Simple": []}
+    # Init measures dictionaries
+    throughput = {"OH": [], "FS": [], "Simple": []}
     pl = {"OH": [], "FS": [], "Simple": []}
     s = {"OH": [], "FS": [], "Simple": []}
     sn = {"OH": [], "FS": [], "Simple": []}
 
     # Measure everything
+    antenna = topo.antennas[0]
     p = list(topo.pylons.keys())[0]# Select the only pylon in the topology
     for u in sorted(topo.users.keys(), key=lambda u: u[0]):
         x.append(dist2(u, p))
         for pi, pathloss in pathlosses.items():
-            y[pi].append(topo.antennas[0].bandwidth * np.log2(1 + snr(topo, p, u, pathloss)))
-            pl[pi].append(pathloss(topo, p,u))
-            s[pi].append(topo.antennas[0].power + topo.antennas[0].gain - pathloss(topo, p,u))
-            sn[pi].append(10*np.log10(snr(topo, p,u, pathloss)))
+            throughput[pi].append(antenna.bandwidth * np.log2(1 + snr(topo, p, u, pathloss)))
+            pl[pi].append(pathloss(topo, p,u))# Pathloss in dB
+            s[pi].append(topo.antennas[0].power + antenna.gain - pathloss(topo, p,u))# in dB
+            sn[pi].append(10*np.log10(snr(topo, p, u, pathloss)))# Convert to dB
+
+    # Plotting styles
+    styles = {"OH": "-", "FS": ":", "Simple": "--"}
 
     # PL
     fig = plt.figure()
     ax = fig.add_subplot()
 
     for pi in pathlosses.keys():
-        ax.scatter(x, pl[pi], label=pi)
+        ax.plot(x, pl[pi], styles[pi], linewidth="5", label=pi)
 
     ax.set_xlabel('Distance between the UE and BS (m)')
     ax.set_ylabel('Path loss (dB)')
@@ -232,7 +238,7 @@ def plot_throughput(topo:Topology):
     ax = fig.add_subplot()
 
     for pi in pathlosses.keys():
-        ax.scatter(x, s[pi], label=pi)
+        ax.plot(x, s[pi], styles[pi], linewidth="5", label=pi)
 
     ax.set_xlabel('Distance between the UE and BS (m)')
     ax.set_ylabel('Signal (dB)')
@@ -246,7 +252,7 @@ def plot_throughput(topo:Topology):
     ax = fig.add_subplot()
 
     for pi in pathlosses.keys():
-        ax.scatter(x, sn[pi], label=pi)
+        ax.plot(x, sn[pi], styles[pi], linewidth="5", label=pi)
 
     ax.set_xlabel('Distance between the UE and BS (m)')
     ax.set_ylabel('Signal to Noise Ratio (dB)')
@@ -261,10 +267,25 @@ def plot_throughput(topo:Topology):
     ax = fig.add_subplot()
 
     for pi in pathlosses.keys():
-        ax.scatter(x, y[pi], label=pi)
+        ax.plot(x, throughput[pi], styles[pi], linewidth="5", label=pi)
 
     ax.set_xlabel('Distance between the UE and BS (m)')
-    ax.set_ylabel('Throughput (bps)')
+    ax.set_ylabel('Throughput (bit/s)')
+    ax.grid(True)
+    ax.legend()
+
+    plt.show(block=False)
+
+    # Spectral efficiency
+    fig = plt.figure()
+    ax = fig.add_subplot()
+
+    for pi in pathlosses.keys():
+        ax.plot(x, [ t / antenna.bandwidth for t in throughput[pi] ], styles[pi], linewidth="5", label=pi)
+
+    ax.set_xlabel('Distance between the UE and BS (m)')
+    ax.set_ylabel('Spectral efficiency ((bit/s)/Hz)')
+    #ax.set_yscale('log')
     ax.grid(True)
     ax.legend()
 

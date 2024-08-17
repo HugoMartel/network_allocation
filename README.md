@@ -10,6 +10,9 @@ You need a few `python` dependencies to be able to run the different scripts and
 
 Or install each dependency only when you need it.
 
+You will also need the command `wget` if you want to run the `init_lyon_data.sh` script.
+
+
 ## Usage
 
 Example:
@@ -18,6 +21,7 @@ python topology/build_graph.py --verbose --density ./data/topology/toy.json --an
 ```
 
 To get a list of available options, a `--help` is available for each python program accepting 2 or more arguments.
+
 
 ## Project organisation
 

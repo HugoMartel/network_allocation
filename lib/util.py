@@ -1,4 +1,5 @@
-import numpy as np
+from numpy import dstack, ndarray
+from numpy.random import uniform
 
 def dist2(u:tuple[int,int], v:tuple[int,int]) -> float:
     """Euclidian distance between two points.
@@ -17,7 +18,7 @@ def dist2(u:tuple[int,int], v:tuple[int,int]) -> float:
     return ((u[0]-v[0])**2 + (u[1]-v[1])**2)**0.5
 
 
-def sample_users(tile_size:tuple[float,float], density:int) -> np.ndarray:
+def sample_users(tile_size:tuple[float,float], density:int) -> ndarray:
     """Sample end users in a tile from a given density.
 
     Parameters
@@ -31,4 +32,4 @@ def sample_users(tile_size:tuple[float,float], density:int) -> np.ndarray:
     -------
     List of sampled end users.
     """
-    return np.dstack((np.random.uniform(0, tile_size[0], density), np.random.uniform(0, tile_size[1], density)))[0]
+    return dstack((uniform(0, tile_size[0], density), uniform(0, tile_size[1], density)))[0]

@@ -1,0 +1,42 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://example.com/product.schema.json",
+    "title": "Equipments",
+    "description": "Scheme to write a correct equipments list JSON file",
+    "type": "array",
+    "items": {
+        "type": "array",
+        "items": {
+            "description": "Tower object",
+            "type": "object",
+            "properties": {
+                "pos": {
+                    "description": "Position of the tower in the grid",
+                    "type": "object",
+                    "properties": {
+                        "x": {
+                            "description": "X coordinate of the tower in meters",
+                            "type": "float"
+                        },
+                        "y": {
+                            "description": "Y coordinate of the tower in meters",
+                            "type": "float"
+                        }
+                    },
+                    "required": [
+                        "x",
+                        "y"
+                    ]
+                },
+                "demand": {
+                    "description": "QoS demand of the equipment in bits per second",
+                    "type": "float"
+                }
+            },
+            "required": [
+                "pos",
+                "demand"
+            ]
+        }
+    }
+}

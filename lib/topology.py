@@ -17,15 +17,18 @@ class AntennaModel:
     """Gain of the antenna in dBi."""
     bandwidth: float
     """Bandwidth of the antenna in Hz."""
+    frequency: float
+    """Frequency used by the antenna in Hz."""
     reach: float
     """Reach of the antenna in meters (range is a reserved keyword)."""
 
-    def __init__(self, name:str, power:float, gain:float, bandwidth:float, reach:float):
+    def __init__(self, name:str, power:float, gain:float, bandwidth:float, frequency:float, reach:float):
         """Constructor of the AntennaModel class."""
         self.name = name
         self.power = power
         self.gain = gain
         self.bandwidth = bandwidth
+        self.frequency = frequency
         self.reach = reach
 
 
@@ -86,8 +89,10 @@ class Topology:
     antennas:list[AntennaModel]
     """List of available antennas models."""
 
-    def __init__(self, topo_filename:str, antennas_filename:str):
+    def __init__(self, topo_filename:str="", antennas_filename:str=""):
         """Loads a json topology file into a Topology object.
+
+        *Provide no arguments to create an empty topology.*
 
         Arguments
         ---------
@@ -96,6 +101,19 @@ class Topology:
         antennas_filename
             JSON antenna models file to load.
         """
+        if topo_filename == "" or antennas_filename == "":
+            print("No topology or antennas file given, creating an empty topology...")
+            self.width = 1
+            self.height = 1
+            self.tile_size = (1,1)
+            self.user_demand = 0
+            self.density_grid = np.array([[1,1],[1,1]])
+            self.graph = WeightedGraph()
+            self.users = {}
+            self.pylons = {}
+            self.antennas = []
+            return
+
         # Load the json files
         topo_json = json.load(open(topo_filename, "r"))
         antennas_json = json.load(open(antennas_filename, "r"))
@@ -161,9 +179,9 @@ def pathloss_oh(topo:Topology, p:tuple[float,float], u:tuple[float,float]) -> fl
     Returns:
     Path loss value in decibels.
     """
-    # f = 3500 # 3.5 GHz - 5G urban model IN MHz
-    f = 1500 # 1.5GHz - max bound of the Okumura-Hata model IN MHz
-    H = topo.pylons[p].height # Effective antenna height of the BS in meters (given by ARCEP2021)
+    antenna = topo.antennas[topo.pylons[p].antenna_type]
+    f = antenna.frequency / 1e6 # Convert frequency to MHz
+    H = topo.pylons[p].height # Effective antenna height of the BS in meters
     d = dist2(p,u) / 1000 # Convert distance between BS and UE to kilometers
     return 69.55 + 26.16*np.log10(f) - 13.82*np.log10(H) + (44.9 - 6.55*np.log10(H)) * np.log10(d)
 
@@ -184,11 +202,11 @@ def pathloss_fs(topo:Topology, p:tuple[float,float], u:tuple[float,float]) -> fl
     -------
     Path loss value in decibels.
     """
+    antenna = topo.antennas[topo.pylons[p].antenna_type]
     alpha = 3. # Path loss exponent in an urban environment
-    # f = 3.5e9 # 3.5 GHz - ARCEP 5G urban model IN Hz
-    f = 1.5e9 # 1.5 GHz - Okumura-Hata model upper bound IN Hz
+    f = antenna.frequency
     PL0 = 10*np.log10((4*np.pi*f)/(3*10**8))
-    d = dist2(p,u) # Convert distance between BS and UE in meters
+    d = dist2(p,u) # Distance between BS and UE in meters
     return alpha * (PL0 + 10 * np.log10(d))
 
 
@@ -201,10 +219,12 @@ def pathloss_simple(topo:Topology, p:tuple[float,float], u:tuple[float,float]) -
     Returns:
     float -- Path loss value in decibels.
     """
+    antenna = topo.antennas[topo.pylons[p].antenna_type]
+
     eta = 3. # Loss factor
-    f = 1500 # 1.5 GHz - Okumura-Hata model upper bound IN MHz
-    H = topo.pylons[p].height # Effective antenna height of the BS in meters (given by ARCEP2021)
-    d = 1 # 1km
+    f = antenna.frequency / 1e6 # Convert frequency to MHz
+    H = topo.pylons[p].height # Effective antenna height of the BS in meters
+    d = .1 # 100m
     PL0 = 69.55 + 26.16*np.log10(f) - 13.82*np.log10(H) + (44.9 - 6.55*np.log10(H)) * np.log10(d)
     return PL0 + eta*np.log10(dist2(p,u))
 

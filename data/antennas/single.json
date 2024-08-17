@@ -1,0 +1,3 @@
+[
+    {"name": "5G Macro", "power": 60, "gain": 17, "bandwidth": 10e6, "frequency": 700e6, "range": 10000, "fov": 120}
+]

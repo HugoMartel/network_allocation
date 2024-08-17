@@ -1,29 +1,43 @@
-from sys import argv
-from os.path import isfile
-from lib.topology import Topology
-from lib.visualize import plot_topology_density, plot_topology_graph, plot_throughput
-from lib.arg_parser import parse_arguments
-from lib.writer import *
+from lib.topology import Topology, AntennaModel, Pylon, User
+from lib.visualize import plot_topology_density, plot_topology_graph, plot_measures
+from numpy import arange
 
 if __name__ == '__main__':
-    args = parse_arguments(
-        [
-            ("--topology", "Sets the topology file to read", str),
-            ("--verbose", "Sets the verbosity of the program", None),
-        ],
-        argv,
-        "== Python tool to visualize and build a network infracture =="
-    )
 
-    if ("--topology" not in args):
-        print("Missing --topology argument\nUse --help for more information about the usage of this program!")
-        exit(0)
+    # Create an empty topology
+    topo = Topology()
 
-    assert(isfile(args["--topology"]))
+    # Samples amount
+    n = 1000
+    min_dist = 10
+    max_dist = 1000
 
-    # Load the topology and the structure
-    topo = Topology(args["--topology"])
+    # Init the topology by hand for measures
+    ## Create antennas
+    topo.antennas.append(AntennaModel(# 5G Macro Cell values
+        "5G Antenna",
+        60,
+        17,
+        10e6,
+        700e6,
+        1000000# Huge range to always allow computing the throughput
+    ))
+
+    ## Create pylons
+    topo.pylons[(0,0)] = Pylon((0,0), 30, 0)
+
+    ## Create users
+    topo.width = max_dist
+    topo.height = 1
+    topo.density_grid = [[1 for _ in range(max_dist)]]
+    topo.users = {
+        (x,0): User((x,0), (0,0), 1e6)
+        for x in arange(min_dist, max_dist+1, (max_dist-min_dist)/n)
+    }
+
+    # Checking if the topology is correctly created
     plot_topology_density(topo)
     plot_topology_graph(topo)
 
-    plot_throughput(topo)
+    # Plot the different measurements
+    plot_measures(topo)

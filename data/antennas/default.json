@@ -1,8 +1,29 @@
 [
-    {"name": "5G Macro", "power": 23, "gain": 0, "bandwidth": 1e7, "range": 10000, "fov": 120},
-    {"name": "5G Micro", "power": 23, "gain": 0, "bandwidth": 1e7, "range": 10000, "fov": 120},
-    {"name": "4G Macro", "power": 23, "gain": 0, "bandwidth": 1e7, "range": 10000, "fov": 120},
-    {"name": "4G Micro", "power": 23, "gain": 0, "bandwidth": 1e7, "range": 10000, "fov": 120},
-    {"name": "3G Macro", "power": 23, "gain": 0, "bandwidth": 1e7, "range": 10000, "fov": 120},
-    {"name": "3G Micro", "power": 23, "gain": 0, "bandwidth": 1e7, "range": 10000, "fov": 120}
+    {
+        "name": "5G Macro",
+        "power": 20,
+        "gain": 17,
+        "bandwidth": 10e6,
+        "frequency": 700e6,
+        "range": 10e3,
+        "fov": 120
+    },
+    {
+        "name": "5G Micro",
+        "power": 10,
+        "gain": 25.05,
+        "bandwidth": 100e6,
+        "frequency": 3500e6,
+        "range": 1e3,
+        "fov": 120
+    },
+    {
+        "name": "4G Macro",
+        "power": 30,
+        "gain": 0,
+        "bandwidth": 20e6,
+        "frequency": 1800e6,
+        "range": 5e3,
+        "fov": 120
+    }
 ]

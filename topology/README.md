@@ -1,3 +1,0 @@
-# Topology - Network Allocation
-
-TODO

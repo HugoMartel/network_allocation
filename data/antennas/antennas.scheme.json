@@ -5,7 +5,7 @@
     "description": "Scheme to write a correct antennas models JSON file",
     "type": "array",
     "items": {
-        "type": "object",
+        "type": "array",
         "items": {
             "type": "object",
             "properties": {
