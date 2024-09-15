@@ -2,7 +2,14 @@ import json
 import matplotlib.pyplot as plt
 
 def plot_samples(UEs:list[object], BSs:list[object]) -> None:
-    """TODO
+    """Plots the sampled UEs and towers cartesian coordinates.
+
+    Parameters
+    ---
+    UEs
+        JSON loaded array of UEs
+    BSs
+        JSON loaded array of BSs
     """
     fig = plt.figure()
     ax = fig.add_subplot()
@@ -35,7 +42,8 @@ def plot_samples(UEs:list[object], BSs:list[object]) -> None:
 if __name__ == '__main__':
     # Load User Equipments
     #samples = json.load(open("data/equipments/lyon_equipments_INSEE.json", "r"))
-    samples = json.load(open("data/equipments/toy.json", "r"))
+    #samples = json.load(open("data/equipments/toy.json", "r"))
+    samples = json.load(open("data/equipments/old.json", "r"))
 
     # Load towers (Base Stations)
     #towers = json.load(open("data/towers/lyon_towers_ANFR.json", "r"))

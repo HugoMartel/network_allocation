@@ -3,7 +3,7 @@ from scipy.optimize import root_scalar
 from lib.topology import Topology, Wcost, Wcost_prime, Wlimit
 from lib.graph import WeightedGraph, WeightedEdge
 from lib.writer import write_log
-from lib.visualize import plot_allocated_bandwidth, plot_topology_allocation
+from visualize.allocation import plot_allocated_bandwidth, plot_topology_allocation
 from typing import Callable
 
 
